@@ -1,23 +1,52 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import { useAuthUserStore } from '@/empleados/stores/useAuthUserStore'
+import { adminRoute } from '../empleados/router/index'
+
+import LoginView from '@/pages/LoginView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    //Public
     {
-      path: '/',
-      name: 'home',
-      component: HomeView
+      path: '/login',
+      name: 'Login',
+      component: LoginView,
+      meta: { requiresAuth: false }
     },
+
+    //Admin
     {
-      path: '/about',
-      name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue')
+      ...adminRoute,
+      path: '/admin',
+      meta: { requiresAuth: true }
+    },
+
+    // Redirigir a la vista "empleados" cuando la ruta es inválida y el usuario está autenticado
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: () => {
+        const authUserStore = useAuthUserStore()
+        return authUserStore.token ? { name: 'empleados' } : { name: 'Login' }
+      }
     }
   ]
+})
+
+router.beforeEach(async (to, from, next) => {
+  const authUserStore = useAuthUserStore()
+  const token = authUserStore.token
+
+  if (to.matched.some((record) => record.meta.requiresAuth)) {
+    if (token) {
+      // TODO: verify token
+      next()
+    } else {
+      next({ name: 'Login' })
+    }
+  } else {
+    next()
+  }
 })
 
 export default router
